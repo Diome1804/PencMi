@@ -253,5 +253,19 @@ export default function createChatPage() {
   app.appendChild(conversationSidebar);
   app.appendChild(chatZone);
 
+  searchInput.addEventListener("input", (e) => {
+    const searchValue = e.target.value;
+    renderContacts(
+      conversationList,
+      chatHeader,
+      messagesContainer,
+      displayMessages,
+      setSelectedContact,
+      undefined,
+      userId,
+      searchValue // <-- Passe la valeur ici
+    );
+  });
+
   return app;
 }

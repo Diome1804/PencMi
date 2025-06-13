@@ -8,7 +8,8 @@ export default function renderContacts(
   displayMessages,
   setSelectedContact,
   contactsOverride,
-  userId
+  userId,
+  searchValue // <-- Ajoute ce paramètre
 ) {
   conversationList.innerHTML = "";
   const contactsPromise = contactsOverride
@@ -16,6 +17,12 @@ export default function renderContacts(
     : getContacts(userId);
 
   contactsPromise.then((contacts) => {
+    // Filtrage par nom si searchValue est fourni
+    if (searchValue) {
+      contacts = contacts.filter(contact =>
+        contact.name.toLowerCase().includes(searchValue.toLowerCase())
+      );
+    }
     contacts.forEach((contact) => {
       const chatItem = document.createElement("div");
       chatItem.className =
