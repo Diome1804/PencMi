@@ -1,4 +1,7 @@
 
+
+import {isValidPhoneNumber} from "../utils/phoneValidation"; 
+
 const API_URL = "https://backend-6s9s.onrender.com/contacts"; // Change this to your actual API URL
 
 export async function getContacts(userId) {
@@ -17,6 +20,9 @@ export async function getBlockedContacts(userId) {
 }
 
 export async function addContact(contact) {
+  if(!isValidPhoneNumber(contact.numero)) {
+    throw new Error("le numero doit etre compose de 9  chiffres");
+  } 
   const res = await fetch(API_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -27,7 +33,7 @@ export async function addContact(contact) {
 
 export async function updateContact(id, data) {
   const res = await fetch(`${API_URL}/${id}`, {
-    method: "PATCH",
+    method: "PATCH", 
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });

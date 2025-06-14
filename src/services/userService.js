@@ -1,6 +1,5 @@
 
 
-
 async function loadDiscussions() {
   // ...affichage des discussions avec contacts...
   const groups = await getGroups();
@@ -11,7 +10,8 @@ async function loadDiscussions() {
     li.onclick = () => openGroupChat(group); // à adapter selon ta logique
     discussionsList.appendChild(li);
   });
-}// filepath: /home/lex_code/Documents/JavaScript/PencMi/src/services/userService.js
+}
+
 const API_URL = "https://backend-6s9s.onrender.com"; // Change this to your actual API URL
 
 export async function getUserByPhone(phone) {
@@ -27,4 +27,4 @@ export async function addUser(user) {
     body: JSON.stringify(user),
   });
   return await res.json();
-}
+}   

@@ -56,16 +56,30 @@ export default function showAddContactForm(onContactAdded) {
 
   form.onsubmit = async (e) => {
     e.preventDefault();
+    errorMsg.classList.add("hidden"); // Cache le message d'erreur au début
+
+    // Vérifie si tous les champs sont remplis
+    if (!nameInput.value.trim() || !phoneInput.value.trim()) {
+      errorMsg.textContent = "Tous les champs sont obligatoires.";
+      errorMsg.classList.remove("hidden");
+      return;
+    }
+
     const currentUser = JSON.parse(localStorage.getItem("currentUser"));
-    await addContact({
-      userId: currentUser.id,
-      name: nameInput.value,
-      phone: phoneInput.value,
-      archived: false,
-      blocked: false
-    });
-    form.remove();
-    if (onContactAdded) onContactAdded();
+    try {
+      await addContact({
+        userId: currentUser.id,
+        name: nameInput.value,
+        numero: phoneInput.value,
+        archived: false,
+        blocked: false
+      });
+      form.remove();
+      if (onContactAdded) onContactAdded();
+    } catch (err) {
+      errorMsg.textContent = err.message;
+      errorMsg.classList.remove("hidden");
+    }
   };
 
   document.body.appendChild(form);
