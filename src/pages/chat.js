@@ -11,6 +11,7 @@ import renderContacts from "../components/ContactList.js";
 import { getArchivedContacts, getBlockedContacts, updateContact, deleteContact } from "../services/contactService.js";
 import showCreateGroupForm from "../components/CreateGroupForm.js";
 import renderGroups from "../components/GroupList.js";
+import { archiveGroup, deleteGroup, leaveGroup, getArchivedGroups } from "../services/groupService.js";
 
 export default function createChatPage() {
   const currentUser = JSON.parse(localStorage.getItem("currentUser"));
@@ -31,10 +32,14 @@ export default function createChatPage() {
   let conversationList;
   let messagesContainer;
 
+  // Variable pour le groupe sélectionné
+  let selectedGroup = null;
+
   // Fonctions d'actions du chat
   const resetChat = () => {
     chatHeader.setTitle("Sélectionne un contact");
     chatHeader.setButtonsVisible(false);
+    chatHeader.setGroupButtonsVisible(false); // ← Ajouter cette ligne
     messagesContainer.innerHTML = "";
   };
 
@@ -44,8 +49,36 @@ export default function createChatPage() {
       chatHeader,
       messagesContainer,
       displayMessages,
-      (contact) => setSelectedContact(contact, chatHeader, messagesContainer, displayMessages, userId)
+      (contact) => {
+        selectedGroup = null; // ← Réinitialiser le groupe
+        setSelectedContact(contact, chatHeader, messagesContainer, displayMessages, userId);
+        // Masquer les boutons de groupe quand on sélectionne un contact
+        chatHeader.setGroupButtonsVisible(false);
+      }
     );
+  };
+
+  // ← NOUVELLE fonction pour gérer la sélection de groupe
+  const setSelectedGroup = (group) => {
+    console.log('Groupe sélectionné:', group); // ← Debug
+    selectedGroup = group;
+    
+    // Réinitialiser le contact sélectionné
+    setSelectedContact(null, chatHeader, messagesContainer, displayMessages, userId);
+    
+    if (selectedGroup) {
+      console.log('Affichage du groupe:', selectedGroup.name); // ← Debug
+      chatHeader.setTitle(`Groupe: ${selectedGroup.name}`);
+      chatHeader.setButtonsVisible(false); // Masquer les boutons de contact
+      chatHeader.setGroupButtonsVisible(true, selectedGroup.adminId === parseInt(userId)); // Afficher les boutons de groupe
+      messagesContainer.innerHTML = `
+        <div class="p-4 text-center text-gray-500">
+          <i class="fas fa-users text-4xl mb-2 block"></i>
+          <p>Messages du groupe "${selectedGroup.name}"</p>
+          <p class="text-sm">Fonctionnalité à implémenter</p>
+        </div>
+      `;
+    }
   };
 
   const deleteContactAction = async () => {
@@ -76,101 +109,188 @@ export default function createChatPage() {
     }
   };
 
+  // Actions pour les groupes
+  const leaveGroupAction = async () => {
+    if (selectedGroup && confirm(`Quitter le groupe "${selectedGroup.name}" ?`)) {
+      try {
+        await leaveGroup(selectedGroup.id, userId);
+        alert('Vous avez quitté le groupe');
+        renderGroups(conversationList, setSelectedGroup);
+        chatHeader.setTitle("Mes groupes");
+        chatHeader.setGroupButtonsVisible(false);
+        messagesContainer.innerHTML = "";
+        selectedGroup = null;
+      } catch (error) {
+        alert('Erreur lors de la sortie du groupe');
+      }
+    }
+  };
+
+  const archiveGroupAction = async () => {
+    if (selectedGroup && confirm(`Archiver le groupe "${selectedGroup.name}" ?`)) {
+      try {
+        await archiveGroup(selectedGroup.id);
+        alert('Groupe archivé');
+        renderGroups(conversationList, setSelectedGroup);
+        chatHeader.setTitle("Mes groupes");
+        chatHeader.setGroupButtonsVisible(false);
+        messagesContainer.innerHTML = "";
+        selectedGroup = null;
+      } catch (error) {
+        alert('Erreur lors de l\'archivage du groupe');
+      }
+    }
+  };
+
+  const deleteGroupAction = async () => {
+    if (selectedGroup && selectedGroup.adminId === parseInt(userId) && 
+        confirm(`Supprimer définitivement le groupe "${selectedGroup.name}" ?`)) {
+      try {
+        await deleteGroup(selectedGroup.id);
+        alert('Groupe supprimé');
+        renderGroups(conversationList, setSelectedGroup);
+        chatHeader.setTitle("Mes groupes");
+        chatHeader.setGroupButtonsVisible(false);
+        messagesContainer.innerHTML = "";
+        selectedGroup = null;
+      } catch (error) {
+        alert('Erreur lors de la suppression du groupe');
+      }
+    }
+  };
+
   // Création du header de chat
   const chatHeader = createChatHeader(
     deleteContactAction,
     archiveContactAction,
-    blockContactAction
+    blockContactAction,
+    leaveGroupAction,
+    deleteGroupAction,
+    archiveGroupAction
   );
 
   // Création de la zone de chat
   const { chatZone, messagesContainer: msgContainer } = createChatZone(chatHeader, getSelectedContact, displayMessages, userId);
-  messagesContainer = msgContainer; // Assignation de la référence
+  messagesContainer = msgContainer;
 
   // Création de la sidebar des conversations
   const { conversationSidebar, conversationList: convList } = createConversationSidebar(
     chatHeader,
     messagesContainer,
     displayMessages,
-    (contact) => setSelectedContact(contact, chatHeader, messagesContainer, displayMessages, userId),
+    (contact) => {
+      selectedGroup = null; // Réinitialiser le groupe
+      setSelectedContact(contact, chatHeader, messagesContainer, displayMessages, userId);
+      chatHeader.setGroupButtonsVisible(false); // Masquer les boutons de groupe
+    },
     userId
   );
-  conversationList = convList; // Assignation de la référence
+  conversationList = convList;
 
   // Création du menu sidebar
   const menuSidebar = createMenuSidebar({
     onDiscussions: () => {
+      selectedGroup = null;
       renderContacts(conversationList, chatHeader, messagesContainer, displayMessages,
-        (contact) => setSelectedContact(contact, chatHeader, messagesContainer, displayMessages, userId),
+        (contact) => {
+          selectedGroup = null;
+          setSelectedContact(contact, chatHeader, messagesContainer, displayMessages, userId);
+          chatHeader.setGroupButtonsVisible(false);
+        },
         undefined, userId);
       const selectedContact = getSelectedContact();
       if (selectedContact) {
         chatHeader.setTitle("Discussion avec " + selectedContact.name);
         chatHeader.setButtonsVisible(true);
+        chatHeader.setGroupButtonsVisible(false);
         displayMessages(messagesContainer, selectedContact, userId);
       } else {
         chatHeader.setTitle("Sélectionne un contact");
         chatHeader.setButtonsVisible(false);
+        chatHeader.setGroupButtonsVisible(false);
         messagesContainer.innerHTML = "";
       }
     },
+
     onContacts: () => {
+      selectedGroup = null;
       showAddContactForm(() =>
         renderContacts(conversationList, chatHeader, messagesContainer, displayMessages,
-          (contact) => setSelectedContact(contact, chatHeader, messagesContainer, displayMessages, userId))
+          (contact) => {
+            selectedGroup = null;
+            setSelectedContact(contact, chatHeader, messagesContainer, displayMessages, userId);
+            chatHeader.setGroupButtonsVisible(false);
+          })
       );
     },
+
     onArchives: () => {
+      selectedGroup = null;
       getArchivedContacts(userId).then((contacts) => {
         renderContacts(conversationList, chatHeader, messagesContainer, displayMessages,
-          (contact) => setSelectedContact(contact, chatHeader, messagesContainer, displayMessages, userId),
+          (contact) => {
+            selectedGroup = null;
+            setSelectedContact(contact, chatHeader, messagesContainer, displayMessages, userId);
+            chatHeader.setGroupButtonsVisible(false);
+          },
           contacts);
         chatHeader.setTitle("Contacts archivés");
         chatHeader.setButtonsVisible(false);
+        chatHeader.setGroupButtonsVisible(false);
         messagesContainer.innerHTML = "";
       });
     },
+
     onBlocked: () => {
+      selectedGroup = null;
       getBlockedContacts(userId).then((contacts) => {
         renderContacts(conversationList, chatHeader, messagesContainer, displayMessages,
-          (contact) => setSelectedContact(contact, chatHeader, messagesContainer, displayMessages, userId),
+          (contact) => {
+            selectedGroup = null;
+            setSelectedContact(contact, chatHeader, messagesContainer, displayMessages, userId);
+            chatHeader.setGroupButtonsVisible(false);
+          },
           contacts);
         chatHeader.setTitle("Contacts bloqués");
         chatHeader.setButtonsVisible(false);
+        chatHeader.setGroupButtonsVisible(false);
         messagesContainer.innerHTML = "";
       });
     },
+
     onGroups: () => {
-      // Afficher la liste des groupes
-      renderGroups(conversationList, (group) => {
-        console.log('Groupe sélectionné:', group);
-        // Tu pourras implémenter le chat de groupe ici plus tard
-      });
+      console.log('Clic sur Groupes'); // ← Debug
+      // Réinitialiser le contact sélectionné
+      setSelectedContact(null, chatHeader, messagesContainer, displayMessages, userId);
       
-      // Mettre à jour le header
+      renderGroups(conversationList, setSelectedGroup);
+      
       chatHeader.setTitle("Mes groupes");
       chatHeader.setButtonsVisible(false);
+      chatHeader.setGroupButtonsVisible(false);
       messagesContainer.innerHTML = "";
+      selectedGroup = null;
       
-      // Ajouter un bouton pour créer un nouveau groupe
       const createGroupBtn = createElement('button', 'w-full p-3 bg-blue-600 text-white hover:bg-blue-700 flex items-center justify-center space-x-2 mb-2');
       createGroupBtn.innerHTML = '<i class="fas fa-plus"></i><span>Créer un groupe</span>';
       createGroupBtn.onclick = () => {
         showCreateGroupForm(() => {
-          // Rafraîchir la liste après création
-          renderGroups(conversationList, (group) => {
-            console.log('Groupe sélectionné:', group);
-          });
+          renderGroups(conversationList, setSelectedGroup);
         });
       };
       
       conversationList.insertBefore(createGroupBtn, conversationList.firstChild);
     },
+
     conversationList: conversationList,
     chatHeader: chatHeader,
     messagesContainer: messagesContainer,
     displayMessages: displayMessages,
-    setSelectedContact: (contact) => setSelectedContact(contact, chatHeader, messagesContainer, displayMessages, userId),
+    setSelectedContact: (contact) => {
+      selectedGroup = null;
+      setSelectedContact(contact, chatHeader, messagesContainer, displayMessages, userId);
+      chatHeader.setGroupButtonsVisible(false);
+    },
     userId: userId,
     selectedContact: getSelectedContact()
   });

@@ -103,3 +103,48 @@ export async function removeMemberFromGroup(groupId, userId) {
     throw error;
   }
 }
+// ... tes fonctions existantes ...
+
+// Nouvelle fonction pour archiver un groupe
+export async function archiveGroup(groupId) {
+  try {
+    return await updateGroup(groupId, { archived: true });
+  } catch (error) {
+    console.error('Erreur lors de l\'archivage du groupe:', error);
+    throw error;
+  }
+}
+
+// Nouvelle fonction pour récupérer les groupes archivés
+export async function getArchivedGroups(userId) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/groups`);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    const groups = await response.json();
+    
+    if (!Array.isArray(groups)) {
+      return [];
+    }
+    
+    return groups.filter(group => 
+      group.archived === true &&
+      group.members && Array.isArray(group.members) && 
+      group.members.includes(parseInt(userId))
+    );
+  } catch (error) {
+    console.error('Erreur lors de la récupération des groupes archivés:', error);
+    return [];
+  }
+}
+
+// Fonction pour quitter un groupe
+export async function leaveGroup(groupId, userId) {
+  try {
+    return await removeMemberFromGroup(groupId, userId);
+  } catch (error) {
+    console.error('Erreur lors de la sortie du groupe:', error);
+    throw error;
+  }
+}
