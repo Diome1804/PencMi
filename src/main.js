@@ -1,7 +1,7 @@
-///import loginForm from './pages/login.js';
+
 import createLoginPage from './pages/login.js';
 import createChatPage from './pages/chat.js';
-import './index.css';
+import './styles/index.css';
 
 document.body.className = 'bg-gradient-to-br from-blue-100 via-blue-200 to-blue-300 min-h-screen flex items-center justify-center';
 

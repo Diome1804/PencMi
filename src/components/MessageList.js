@@ -2,7 +2,6 @@ import { getMessagesForContact } from "../services/messageService.js";
 
 export default function displayMessages(messagesContainer, contact, userId) {
   if (!contact || !userId) return;
-
   messagesContainer.innerHTML = "";
   getMessagesForContact(userId, contact.id).then((msgs) => {
     msgs.forEach((msg) => {

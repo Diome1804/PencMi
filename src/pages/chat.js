@@ -219,7 +219,7 @@ export default function createChatPage() {
   form.appendChild(input);
   form.appendChild(button);
 
-  form.addEventListener("submit", async (e) => {
+  form.addEventListener("submit", async e => {
     e.preventDefault();
     const text = input.value.trim();
     if (!selectedContact) {
