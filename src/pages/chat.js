@@ -4,11 +4,13 @@ import { useSelectedContact } from "../hooks/useSelectedContact.js";
 import { createConversationSidebar } from "../components/chat/ConversationSidebar.js";
 import { createChatZone } from "../components/chat/ChatZone.js";
 import displayMessages from "../components/MessageList.js";
-import createChatHeader from "../components/ChatHeader.js";
+import createChatHeader from "../components/chat/ChatHeader.js";
 import createMenuSidebar from "../components/MenuSidebar.js";
 import showAddContactForm from "../components/AddContactForm.js";
 import renderContacts from "../components/ContactList.js";
 import { getArchivedContacts, getBlockedContacts, updateContact, deleteContact } from "../services/contactService.js";
+import showCreateGroupForm from "../components/CreateGroupForm.js";
+import renderGroups from "../components/GroupList.js";
 
 export default function createChatPage() {
   const currentUser = JSON.parse(localStorage.getItem("currentUser"));
@@ -87,10 +89,10 @@ export default function createChatPage() {
 
   // Création de la sidebar des conversations
   const { conversationSidebar, conversationList: convList } = createConversationSidebar(
-    chatHeader, 
-    messagesContainer, 
-    displayMessages, 
-    (contact) => setSelectedContact(contact, chatHeader, messagesContainer, displayMessages, userId), 
+    chatHeader,
+    messagesContainer,
+    displayMessages,
+    (contact) => setSelectedContact(contact, chatHeader, messagesContainer, displayMessages, userId),
     userId
   );
   conversationList = convList; // Assignation de la référence
@@ -98,8 +100,8 @@ export default function createChatPage() {
   // Création du menu sidebar
   const menuSidebar = createMenuSidebar({
     onDiscussions: () => {
-      renderContacts(conversationList, chatHeader, messagesContainer, displayMessages, 
-        (contact) => setSelectedContact(contact, chatHeader, messagesContainer, displayMessages, userId), 
+      renderContacts(conversationList, chatHeader, messagesContainer, displayMessages,
+        (contact) => setSelectedContact(contact, chatHeader, messagesContainer, displayMessages, userId),
         undefined, userId);
       const selectedContact = getSelectedContact();
       if (selectedContact) {
@@ -114,14 +116,14 @@ export default function createChatPage() {
     },
     onContacts: () => {
       showAddContactForm(() =>
-        renderContacts(conversationList, chatHeader, messagesContainer, displayMessages, 
+        renderContacts(conversationList, chatHeader, messagesContainer, displayMessages,
           (contact) => setSelectedContact(contact, chatHeader, messagesContainer, displayMessages, userId))
       );
     },
     onArchives: () => {
       getArchivedContacts(userId).then((contacts) => {
-        renderContacts(conversationList, chatHeader, messagesContainer, displayMessages, 
-          (contact) => setSelectedContact(contact, chatHeader, messagesContainer, displayMessages, userId), 
+        renderContacts(conversationList, chatHeader, messagesContainer, displayMessages,
+          (contact) => setSelectedContact(contact, chatHeader, messagesContainer, displayMessages, userId),
           contacts);
         chatHeader.setTitle("Contacts archivés");
         chatHeader.setButtonsVisible(false);
@@ -130,13 +132,39 @@ export default function createChatPage() {
     },
     onBlocked: () => {
       getBlockedContacts(userId).then((contacts) => {
-        renderContacts(conversationList, chatHeader, messagesContainer, displayMessages, 
-          (contact) => setSelectedContact(contact, chatHeader, messagesContainer, displayMessages, userId), 
+        renderContacts(conversationList, chatHeader, messagesContainer, displayMessages,
+          (contact) => setSelectedContact(contact, chatHeader, messagesContainer, displayMessages, userId),
           contacts);
         chatHeader.setTitle("Contacts bloqués");
         chatHeader.setButtonsVisible(false);
         messagesContainer.innerHTML = "";
       });
+    },
+    onGroups: () => {
+      // Afficher la liste des groupes
+      renderGroups(conversationList, (group) => {
+        console.log('Groupe sélectionné:', group);
+        // Tu pourras implémenter le chat de groupe ici plus tard
+      });
+      
+      // Mettre à jour le header
+      chatHeader.setTitle("Mes groupes");
+      chatHeader.setButtonsVisible(false);
+      messagesContainer.innerHTML = "";
+      
+      // Ajouter un bouton pour créer un nouveau groupe
+      const createGroupBtn = createElement('button', 'w-full p-3 bg-blue-600 text-white hover:bg-blue-700 flex items-center justify-center space-x-2 mb-2');
+      createGroupBtn.innerHTML = '<i class="fas fa-plus"></i><span>Créer un groupe</span>';
+      createGroupBtn.onclick = () => {
+        showCreateGroupForm(() => {
+          // Rafraîchir la liste après création
+          renderGroups(conversationList, (group) => {
+            console.log('Groupe sélectionné:', group);
+          });
+        });
+      };
+      
+      conversationList.insertBefore(createGroupBtn, conversationList.firstChild);
     },
     conversationList: conversationList,
     chatHeader: chatHeader,
