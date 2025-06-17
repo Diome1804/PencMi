@@ -1,134 +1,96 @@
+  import { getContacts } from '../services/contactService.js';
+  import { createAvatarWithStatus } from '../utils/avatarUtils.js';
 
+  export default async function renderContacts(
+    container, 
+    chatHeader, 
+    messagesContainer, 
+    displayMessages, 
+    setSelectedContact, 
+    contacts = null, 
+    userId = null, 
+    searchValue = ""
+  ) {
+    container.innerHTML = '';
 
-import { getContacts, updateContact } from "../services/contactService.js";
-import { getMessagesForContact } from "../services/messageService.js";
+    try {
+      let contactList = contacts || await getContacts(userId);
+    
+      if (searchValue) {
+        contactList = contactList.filter(contact => 
+          contact.name.toLowerCase().includes(searchValue.toLowerCase()) ||
+          contact.phone.includes(searchValue)
+        );
+      }
 
-export default function renderContacts(
-  conversationList,
-  chatHeader,
-  messagesContainer,
-  displayMessages,
-  setSelectedContact,
-  contactsOverride,
-  userId,
-  searchValue // <-- Ajoute ce paramètre
-) {
-  conversationList.innerHTML = "";
-  const contactsPromise = contactsOverride
-    ? Promise.resolve(contactsOverride)
-    : getContacts(userId);
+      if (contactList.length === 0) {
+        const emptyState = document.createElement('div');
+        emptyState.className = 'p-4 text-center text-gray-500';
+        emptyState.innerHTML = `
+          <i class="fas fa-user-friends text-4xl mb-2 block"></i>
+          <p>Aucun contact trouvé</p>
+        `;
+        container.appendChild(emptyState);
+        return;
+      }
 
-  contactsPromise.then((contacts) => {
-    // Filtrage par nom si searchValue est fourni
-    if (searchValue) {
-      contacts = contacts.filter(contact =>
-        contact.name.toLowerCase().includes(searchValue.toLowerCase())
-      );
-    }
-    contacts.forEach((contact) => {
-      const chatItem = document.createElement("div");
-      chatItem.className =
-        "flex items-center justify-between p-4 hover:bg-gray-100 border-b cursor-pointer";
+      contactList.forEach(contact => {
+        const contactItem = document.createElement('div');
+        contactItem.className = 'p-3 border-b hover:bg-gray-50 cursor-pointer flex items-center space-x-3';
 
-      // Partie gauche : nom + dernier message
-      const infoDiv = document.createElement("div");
-      infoDiv.className = "flex flex-col min-w-0";
+        // ← UTILISER la fonction utilitaire pour créer l'avatar
+        const avatarContainer = createAvatarWithStatus(contact.name, false, 'md'); // false = pas en ligne pour l'instant
 
-      const nameSpan = document.createElement("span");
-      nameSpan.textContent = contact.name;
-      nameSpan.className = "font-semibold text-base truncate";
+        // Informations du contact
+        const contactInfo = document.createElement('div');
+        contactInfo.className = 'flex-1 min-w-0';
 
-      // Dernier message et heure
-      const lastMsgRow = document.createElement("div");
-      lastMsgRow.className = "flex items-center gap-2 mt-1 min-w-0";
+        const contactName = document.createElement('div');
+        contactName.className = 'font-semibold text-gray-800 truncate';
+        contactName.textContent = contact.name;
 
-      const lastMsgDiv = document.createElement("span");
-      lastMsgDiv.className = "text-xs text-gray-500 truncate max-w-[150px]";
+        const contactPhone = document.createElement('div');
+        contactPhone.className = 'text-sm text-gray-500 truncate';
+        contactPhone.textContent = contact.phone;
 
-      const lastMsgTime = document.createElement("span");
-      lastMsgTime.className = "text-xs text-gray-400 ml-2 flex-shrink-0";
+        contactInfo.append(contactName, contactPhone);
 
-      // Correction ici : on utilise contact.id et on affiche l'heure formatée
-      getMessagesForContact(userId, contact.id).then((messages) => {
-        if (messages.length > 0) {
-          const lastMsg = messages[messages.length - 1];
-          lastMsgDiv.textContent = lastMsg.text;
-          lastMsgTime.textContent = lastMsg.timestamp
-            ? new Date(lastMsg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-            : "";
-        } else {
-          lastMsgDiv.textContent = "Aucun message";
-          lastMsgTime.textContent = "";
+        // Badges de statut
+        const statusContainer = document.createElement('div');
+        statusContainer.className = 'flex flex-col gap-1';
+
+        if (contact.archived) {
+          const archivedBadge = document.createElement('div');
+          archivedBadge.className = 'text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full text-center';
+          archivedBadge.textContent = 'Archivé';
+          statusContainer.appendChild(archivedBadge);
         }
+
+        if (contact.blocked) {
+          const blockedBadge = document.createElement('div');
+          blockedBadge.className = 'text-xs bg-red-100 text-red-600 px-2 py-1 rounded-full text-center';
+          blockedBadge.textContent = 'Bloqué';
+          statusContainer.appendChild(blockedBadge);
+        }
+
+        // Assemblage
+        contactItem.append(avatarContainer, contactInfo, statusContainer);
+
+        // Gestion du clic
+        contactItem.onclick = () => {
+          if (setSelectedContact) {
+            setSelectedContact(contact);
+          }
+        };
+
+        container.appendChild(contactItem);
       });
 
-      lastMsgRow.appendChild(lastMsgDiv);
-      lastMsgRow.appendChild(lastMsgTime);
-
-      infoDiv.appendChild(nameSpan);
-      infoDiv.appendChild(lastMsgRow);
-
-      // Partie droite : actions
-      const actions = document.createElement("div");
-      actions.className = "flex gap-2 ml-4";
-
-      // Bouton désarchiver
-      if (contact.archived) {
-        const unarchiveBtn = document.createElement("button");
-        unarchiveBtn.className = "text-yellow-400 hover:text-yellow-600";
-        unarchiveBtn.title = "Désarchiver";
-        unarchiveBtn.innerHTML = '<i class="fas fa-inbox"></i>';
-        unarchiveBtn.onclick = async (e) => {
-          e.stopPropagation();
-          await updateContact(contact.id, { archived: false });
-          renderContacts(
-            conversationList,
-            chatHeader,
-            messagesContainer,
-            displayMessages,
-            setSelectedContact,
-            contacts.filter((c) => c.id !== contact.id)
-          );
-        };
-        actions.appendChild(unarchiveBtn);
-      }
-
-      // Bouton débloquer
-      if (contact.blocked) {
-        const unblockBtn = document.createElement("button");
-        unblockBtn.className = "text-green-400 hover:text-green-600";
-        unblockBtn.title = "Débloquer";
-        unblockBtn.innerHTML = '<i class="fas fa-user-check"></i>';
-        unblockBtn.onclick = async (e) => {
-          e.stopPropagation();
-          await updateContact(contact.id, { blocked: false });
-          renderContacts(
-            conversationList,
-            chatHeader,
-            messagesContainer,
-            displayMessages,
-            setSelectedContact,
-            contacts.filter((c) => c.id !== contact.id)
-          );
-        };
-        actions.appendChild(unblockBtn);
-      }
-
-      chatItem.onclick = () => {
-        setSelectedContact(contact);
-        chatHeader.setTitle("Discussion avec " + contact.name);
-        displayMessages(messagesContainer, contact, userId);
-      };
-
-      chatItem.appendChild(infoDiv);
-      chatItem.appendChild(actions);
-      conversationList.appendChild(chatItem);
-    });
-    if (contacts.length === 0) {
-      const emptyMsg = document.createElement("div");
-      emptyMsg.className = "p-4 text-gray-400 text-center";
-      emptyMsg.textContent = "Aucun contact pour le moment.";
-      conversationList.appendChild(emptyMsg);
+    } catch (error) {
+      console.error('Erreur lors du chargement des contacts:', error);
+      const errorDiv = document.createElement('div');
+      errorDiv.className = 'p-4 text-center text-red-500';
+      errorDiv.textContent = 'Erreur lors du chargement des contacts';
+      container.appendChild(errorDiv);
     }
-  });
-}
+  }
